@@ -1,0 +1,760 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>DSI Tempest display screen emulator</title>
+    <style>
+      body {
+        margin: 0px;
+        padding: 0px;
+      }
+      #myCanvas{
+        background-color:#000;
+      }
+      #knobCanvas{
+        background-color:#DDD;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <canvas id="myCanvas"></canvas>
+    </div>
+    Pitch Envelope:
+    <button onClick="ADSR(6,11,0,0,0,0,0,0,'Pitch Env',false,1,'Osc All Freq');">Pg1</button>
+    <button onClick="ADSR(6,11,0,0,0,0,0,0,'Pitch Env',false,2,'Osc All Freq');">Pg2</button>
+    <button onClick="ADSR(6,11,0,0,0,0,0,0,'Pitch Env',false,3,'Osc All Freq');">Pg3</button>
+    <br />
+    Lowpass Envelope:
+    <button onClick="ADSR(0,50,0,0,20,0,-17,0,'Filter Env',false,1);">Pg1</button>
+    <button onClick="ADSR(0,50,0,0,20,0,-17,0,'Filter Env',false,2);">Pg2</button>
+    <button onClick="ADSR(0,50,0,0,20,0,-17,0,'Filter Env',false,3);">Pg3</button>
+    <br />
+    Amp Envelope:
+    <button onClick="ADSR(2,63,0,0,0,0,0,127,'VCA Env',false,1);">Pg1</button>
+    <button onClick="ADSR(2,63,0,0,0,0,0,127,'VCA Env',false,2);">Pg2</button>
+    <button onClick="ADSR(2,63,0,0,0,0,0,127,'VCA Env',false,3);">Pg3</button>
+    <br />
+    Aux 1 Envelope:
+    <button onClick="ADSR(0,25,0,0,0,0,127,35,'Aux 1 Env',false,1,'Feedback Volume');">Pg1</button>
+    <button onClick="ADSR(0,25,0,0,0,0,127,35,'Aux 1 Env',false,2,'Feedback Volume');">Pg2</button>
+    <button onClick="ADSR(0,25,0,0,0,0,127,35,'Aux 1 Env',false,3,'Feedback Volume');">Pg3</button>
+    <br />
+    Aux 2 Envelope:
+    <button onClick="ADSR(17,111,0,0,0,0,55,0,'Aux 2 Env',false,1,'Osc 3 Level');">Pg1</button>
+    <button onClick="ADSR(17,111,0,0,0,0,55,0,'Aux 2 Env',false,2,'Osc 3 Level');">Pg2</button>
+    <button onClick="ADSR(17,111,0,0,0,0,55,0,'Aux 2 Env',false,3,'Osc 3 Level');">Pg3</button>
+    <br />
+    Lowpass
+    <button onClick="filters(100,24,0,15,true)">Details</button>
+    <br />Osc1
+    <button onClick="DCO('Triangle','82','A2',26,1);">Pg1</button>
+    <button onClick="DCO2(false,0,5,1);">Pg2</button>
+    <br />Osc2
+    <button onClick="DCO('Saw-Tri','82','C#3',0,2);">Pg1</button>
+    <button onClick="DCO2(false,0,5,1);">Pg2</button>
+    <br />Osc3
+    <button onClick="sample('3. Pink Noise',29,-1,0,29,3);">Pg1</button>
+    <button onClick="sample2(false,29,3);">Pg2</button>
+    <br />Osc4
+    <button onClick="sample('2. White Noise',22,0,0,29,4);">Pg1</button>
+    <button onClick="sample2(false,29,3);">Pg2</button>
+
+
+    <br />LFO1
+    <button onClick="LFO1('Random',0,0,'None','Off',1,1);">Pg1</button>
+    <button onClick="LFO1('Random',0,0,'None','Off',1,2);">Pg2</button>
+    <br />LFO2
+    <button onClick="LFO1('Triangle',120,32,'Osc 3 Level','Off',2,1);">Pg1</button>
+    <button onClick="LFO1('Triangle',120,32,'Osc 3 Level','Off',2,2);">Pg2</button>
+    <br />Mod Paths:
+    <ul>
+      <li>Amp Env > 14 > Amp Env Decay</li>
+      <li>Aux 2 Env > 53 > Aux 2 Env Decay</li>
+      <li>Velocity > 39 > Osc 4 Level</li>
+      <li>LFO 2 > 54 > Osc 4 Level</li>
+    </ul>
+
+    <script>
+
+      //Base layout
+      {
+        var canvas = document.getElementById('myCanvas');
+        var context = canvas.getContext('2d');
+        var sizeMultiplier = 1.5;
+        var radius = 7 * sizeMultiplier;
+        var soundName = 'Acrolite Snare';
+        var beatName = 'Fake Acoustic Kit';
+      }
+
+      drawTemplate = function(beatName, soundNumber, soundName){
+        OledWidth = 300 * sizeMultiplier;
+        OledHeight = 75 * sizeMultiplier;
+        labelHeight = 10 * sizeMultiplier;
+        labelWidth = 75 * sizeMultiplier;
+        pixelSize = 1 * sizeMultiplier;
+        LgFont = labelHeight * 0.9;
+        MidFont = labelHeight * 0.8;
+        SmFont = labelHeight * 0.6;
+
+        bottomLabelBase = OledHeight - labelHeight + MidFont;
+
+        canvas.height = OledHeight;
+        canvas.width = OledWidth;
+
+        context.font =  MidFont + 'pt Calibri';
+        context.textAlign = 'left';
+        context.fillStyle = '#00FFFF';
+
+        context.fillText(
+          'Bt: 1/' + beatName,
+          pixelSize ,
+          2 * labelHeight - (2 * pixelSize)
+        );
+
+        context.fillText(
+          'Snd: ' + soundNumber + '/' + soundName,
+          2 * labelWidth + pixelSize,
+          2 * labelHeight - (2 * pixelSize)
+        );
+
+        context.beginPath();
+        context.rect(0, 0, OledWidth, labelHeight);
+        context.fill();
+
+        context.lineWidth = pixelSize;
+        context.beginPath();
+        context.rect(0, OledHeight - labelHeight, OledWidth, labelHeight);
+        context.fill();
+
+        //Info bar
+        context.beginPath();
+        context.moveTo(0, 2 * labelHeight);
+        context.lineTo(OledWidth, 2 * labelHeight);
+        context.strokeStyle = '#00FFFF';
+        context.stroke();
+
+        context.strokeStyle = '#000000';
+
+        // Top label dividers
+        context.beginPath();
+        context.moveTo(labelWidth, 0);
+        context.lineTo(labelWidth, labelHeight);
+        context.stroke();
+
+        context.beginPath();
+        context.moveTo(2 * labelWidth, 0);
+        context.lineTo(2 * labelWidth, labelHeight);
+        context.stroke();
+
+        context.beginPath();
+        context.moveTo(3 * labelWidth, 0);
+        context.lineTo(3 * labelWidth, labelHeight);
+        context.stroke();
+
+        //Bottom label dividers
+        context.beginPath();
+        context.moveTo(labelWidth, OledHeight - labelHeight);
+        context.lineTo(labelWidth, OledHeight);
+        context.stroke();
+
+        context.beginPath();
+        context.moveTo(2 * labelWidth, OledHeight - labelHeight);
+        context.lineTo(2 * labelWidth, OledHeight);
+        context.stroke();
+
+        context.beginPath();
+        context.moveTo(3 * labelWidth, OledHeight - labelHeight);
+        context.lineTo(3 * labelWidth, OledHeight);
+        context.stroke();
+
+        context.textAlign = 'center';
+        context.fillStyle = '#000000'
+
+        context.fillText('Revert Snd', (labelWidth / 2), bottomLabelBase);
+        context.fillText('120.0', (2 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+        context.fillText('1. 1. 1', (3 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+      }
+
+      drawToggle = function(enabled,label){
+
+        if(label=="4 Pole"){
+          boxStartX = 96 * pixelSize;
+          boxStartY =  55 * pixelSize;
+          textStartX = boxStartX + (25*pixelSize);
+          textStartY = boxStartY + (5*pixelSize);
+        }
+        if(label=="Reverse"){
+          boxStartX = 110 * pixelSize;
+          boxStartY = 37 * pixelSize;
+          textStartX = boxStartX + (5*pixelSize);
+          textStartY = boxStartY + (15*pixelSize);
+        }
+        if(label=="Sync 2->1"){
+          boxStartX = 110 * pixelSize;
+          boxStartY = 37 * pixelSize;
+          textStartX = boxStartX - (9*pixelSize);
+          textStartY = boxStartY + (15*pixelSize);
+        }
+
+        if(label=="Sync"){
+          boxStartX = 180 * pixelSize;
+          boxStartY = 41 * pixelSize;
+          textStartX = boxStartX - (2*pixelSize);
+          textStartY = boxStartY + (15*pixelSize);
+        }
+
+
+
+        context.beginPath();
+        context.rect(boxStartX,boxStartY, 10 * pixelSize, 5 * pixelSize);
+        context.strokeStyle = '#00FFFF';
+        context.stroke();
+
+        if(enabled){
+          context.beginPath();
+          context.rect(boxStartX + (2 * pixelSize), boxStartY + (2 * pixelSize), 6 * pixelSize, 1 * pixelSize);
+          context.strokeStyle = '#00FFFF';
+          context.stroke();
+        }
+
+        context.fillStyle = '#00FFFF';
+        context.font =  SmFont + 'pt Calibri';
+        context.fillText(label.toUpperCase(), textStartX, textStartY);
+
+      }
+
+      tweakKnob = function(x, y, width, height, degrees, kc) {
+        x = x/2 + pixelSize;
+        y = y/2 + pixelSize;
+        centerX = 2 * radius;
+        centerY = 2 * radius;
+        kc.beginPath();
+        kc.lineWidth = pixelSize;
+        kc.translate(x + width / 2, y + height / 2);
+        kc.rotate(degrees * Math.PI / 180);
+        kc.arc(centerX - 2 * radius, centerY - 2 * radius, radius, 0, 360, false);
+        kc.fillStyle = '#000000';
+        kc.fill();
+        kc.strokeStyle = '#00FFFF';
+        kc.stroke();
+        kc.beginPath();
+        kc.moveTo(centerX - 2 * radius,centerY - 2 * radius);
+        kc.lineTo(centerX - 2 * radius, centerY - 2 * radius + radius);
+        kc.stroke();
+      }
+
+      knob = function(section,value,label, position){
+        knobCanvas = document.createElement('canvas');
+        knobCanvas.height =  2 * (2 * radius);
+        knobCanvas.width = 2 * (2 * radius);
+        knobContext = knobCanvas.getContext('2d');
+
+        //Here be dragons
+        if(value > 100){
+          mult=2.7;
+        }
+        else if(value > 70 ){
+          mult=2.8;
+        }
+        else if( value < 20){
+          mult = 2.85;
+        }
+        else{
+          mult=3;
+        }
+
+        if(label=="amount"){
+          knobvalue = ((value + 127) / 2) * mult;
+        }
+        else{
+          knobvalue = value * mult;
+        }
+
+        if(label=="frequency"){
+          knobvalue = (knobvalue * .8) + 180;
+        }
+
+        if(label=="fine freq"){
+          knobvalue = (knobvalue * 1.2) + 180;
+        }
+
+        if(label=="Pre/Post Filter"){
+          preF = value;
+          postF = 100-value;
+          knobvalue = ((100-value) * 3.6);
+          value = preF + "/" + postF;
+        }
+        if(label=="Osc Slop"){
+          knobvalue = value * 22 * mult;
+        }
+
+        if(isNaN(knobvalue)){
+          if(value.substr(1,1) == "#"){
+            octave=value.substr(2,1);
+          }
+          else{
+            octave=value.substr(1,1);
+          }
+          knobvalue = octave * 12.7 * mult;
+        }
+        tweakKnob(radius, radius, radius, radius, knobvalue, knobContext);
+
+        centerY = (section == "vcf") ? 30 : 40;
+        if(section == 'env'){
+          switch(position){
+            case 1:
+              centerX = 25;
+              break;
+              case 2:
+                centerX = 80;
+                break;f
+              case 3:
+                centerX = 135;
+                break;
+              case 4:
+                centerX = 185;
+                break;
+              }}
+          else if(section == 'vcf'){
+            switch(position){
+              case 1:
+                centerX = 30;
+                break;
+              case 2:
+                centerX = 110;
+                break;f
+              case 3:
+                centerX = 185;
+                break;
+              case 4:
+                centerX = 255;
+                break;
+              }
+          }
+          else if(section == 'freq'){
+            switch(position){
+              case 1:
+                centerX = 135;
+                break;
+              case 2:
+                centerX = 205;
+                break;f
+              case 3:
+                centerX = 270;
+                break;
+              }
+            }
+          else if(section == 'osc'){
+            switch(position){
+              case 1:
+                centerX = 190;
+                break;
+              }
+            }
+          else if(section == 'lfo'){
+            switch(position){
+              case 1:
+                centerX = 120;
+                break;
+              case 2:
+                centerX = 170;
+                break;
+              }
+            }
+
+        centerX = centerX * sizeMultiplier;
+        centerY = centerY  * sizeMultiplier;
+
+        context.drawImage(knobCanvas, centerX -  radius - pixelSize, centerY -2 * radius /2 - pixelSize );
+
+        context.textAlign = 'left';
+        context.fillStyle = '#00FFFF';
+
+        context.font =  LgFont + 'pt Calibri';
+        context.fillText(
+          value,
+          centerX + radius + 2 * pixelSize,
+          centerY + (radius / 2)
+        );
+
+        if(section=='vcf' || section=='freq'){context.textAlign = 'center'; spacing = 10 * pixelSize}
+        else{context.textAlign = 'left'; spacing = pixelSize * (-2);}
+        context.font =  SmFont + 'pt Calibri';
+        context.fillText(
+          label.toUpperCase(),
+          centerX - radius + spacing,
+          centerY + (2 * radius) + 2 * pixelSize
+        );
+      }
+
+      filters = function(lp,q,m,hp,fourpole){
+        drawTemplate(beatName,'A12',soundName);
+
+        context.fillText('Filters', (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+        context.fillText('LP Freq', (labelWidth / 2), MidFont);
+        context.fillText('Resonance', (2 * labelWidth) - (labelWidth / 2), MidFont);
+        context.fillText('Audio Mod', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+        context.fillText('HP Freq', (4 * labelWidth) - (labelWidth / 2), MidFont);
+
+        drawToggle(fourpole,'4 Pole');
+
+        // Divider
+        context.beginPath();
+        context.moveTo(3 * labelWidth, 2 * labelHeight);
+        context.lineTo(3 * labelWidth, OledHeight - 1.2 * labelHeight);
+        context.strokeStyle = '#00FFFF';
+        context.stroke();
+
+
+        knob('vcf',lp,'lp freq', 1);
+        knob('vcf',q,'resonance', 2);
+        knob('vcf',m, 'audio mod', 3);
+        knob('vcf',hp, 'hp freq', 4);
+      }
+
+      drawOsc = function(shape){
+        context.strokeStyle="#00FFFF";
+        if(shape == "Rev Saw"){
+          context.beginPath();
+          context.moveTo(2 * pixelSize, 50 * pixelSize);
+          context.lineTo(2 * pixelSize, 34* pixelSize);
+          context.lineTo(20 * pixelSize, 50* pixelSize);
+          context.lineTo(20 * pixelSize, 34* pixelSize);
+          context.lineTo(40 * pixelSize, 50* pixelSize);
+        }
+        if(shape =="Sawtooth"){
+          context.moveTo(2 * pixelSize, 50 * pixelSize);
+          context.lineTo(20 * pixelSize, 34* pixelSize);
+          context.lineTo(20 * pixelSize, 50* pixelSize);
+          context.lineTo(40 * pixelSize, 34* pixelSize);
+          context.lineTo(40 * pixelSize, 50* pixelSize);
+        }
+        if(shape =="Saw-Tri"){
+          context.moveTo(2 * pixelSize, 50 * pixelSize);
+          context.lineTo(17 * pixelSize, 36* pixelSize);
+          context.lineTo(20 * pixelSize, 40* pixelSize);
+          context.lineTo(20 * pixelSize, 50* pixelSize);
+          context.lineTo(36 * pixelSize, 36* pixelSize);
+          context.lineTo(40 * pixelSize, 40* pixelSize);
+          context.lineTo(40 * pixelSize, 50* pixelSize);
+        }
+        if(shape =="Triangle"){
+          context.moveTo(2 * pixelSize, 42 * pixelSize);
+          context.lineTo(10 * pixelSize, 35* pixelSize);
+          context.lineTo(30 * pixelSize, 50* pixelSize);
+          context.lineTo(40 * pixelSize, 42* pixelSize);
+        }
+        if(shape =="Square"){
+          context.moveTo(2 * pixelSize, 42 * pixelSize);
+          context.lineTo(2 * pixelSize, 35* pixelSize);
+          context.lineTo(20 * pixelSize, 35* pixelSize);
+          context.lineTo(20 * pixelSize, 50* pixelSize);
+          context.lineTo(40 * pixelSize, 50* pixelSize);
+          context.lineTo(40 * pixelSize, 42* pixelSize);
+        }
+        if(shape.substr(0,3) =="Pul"){
+          pct = shape.substr(6,2);
+          if(pct.substr(0,2)=="%"){
+            pct = pct.substr(0,1);
+          }
+          pct = 2 *(pct/100);
+
+          context.moveTo(2 * pixelSize, 42 * pixelSize);
+          context.lineTo(2 * pixelSize, 35* pixelSize);
+          context.lineTo((20 * pixelSize) * pct, 35* pixelSize);
+          context.lineTo((20 * pixelSize) * pct, 50* pixelSize);
+          context.lineTo(40 * pixelSize, 50* pixelSize);
+          context.lineTo(40 * pixelSize, 42* pixelSize);
+        }
+        if(shape =="Random"){
+          context.moveTo(2 * pixelSize, 42 * pixelSize);
+          context.lineTo(2 * pixelSize, 38* pixelSize); //up
+          context.lineTo(5 * pixelSize, 38* pixelSize); //over
+          context.lineTo(5 * pixelSize, 46* pixelSize); //down
+          context.lineTo(10 * pixelSize, 46* pixelSize); //over
+          context.lineTo(10 * pixelSize, 36* pixelSize); //up
+          context.lineTo(15 * pixelSize, 36* pixelSize); //over
+          context.lineTo(15 * pixelSize, 48* pixelSize); //down
+          context.lineTo(20 * pixelSize, 48* pixelSize); //over
+          context.lineTo(20 * pixelSize, 40* pixelSize); //up
+          context.lineTo(25 * pixelSize, 40* pixelSize); //over
+          context.lineTo(25 * pixelSize, 43* pixelSize); //down
+          context.lineTo(30 * pixelSize, 43* pixelSize); //over
+          context.lineTo(30 * pixelSize, 34* pixelSize); //up
+          context.lineTo(35 * pixelSize, 34* pixelSize); //over
+          context.lineTo(35 * pixelSize, 46* pixelSize); //down
+          context.lineTo(40 * pixelSize, 46* pixelSize); //over
+          context.lineTo(40 * pixelSize, 42* pixelSize); //up
+        }
+        context.stroke();
+
+        context.beginPath();
+        context.rect(45 * pixelSize,32*pixelSize, 48 * pixelSize, 14 * pixelSize);
+        context.strokeStyle = '#00FFFF';
+        context.stroke();
+
+        context.fillStyle = "#00FFFF";
+        context.textAlign = 'left';
+        context.font =  MidFont + 'pt Calibri';
+        context.fillText(shape, 47 * pixelSize, 43 * pixelSize);
+        context.font =  SmFont + 'pt Calibri';
+        context.fillText('Shape'.toUpperCase(), 44 * pixelSize, 56 * pixelSize);
+
+      }
+
+      ADSR = function(a,d,s,r,p,delay,amount,velAmount,type,adsr,page,dest){
+        drawTemplate(beatName,'A12',soundName);
+        //Beware! As I get further along, I care even less about doing things good.
+        //A refactor is sorely needed at this stage.
+        context.fillText(type, (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+
+        if(page<3){
+          context.fillText('Peak: ' + p, (4 * labelWidth) - (labelWidth / 2), MidFont);
+        }
+
+        if(page==1){
+          context.fillText('Attack', (labelWidth / 2), MidFont);
+          context.fillText('Decay', (2 * labelWidth) - (labelWidth / 2), MidFont);
+          context.fillText('Amount', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+          attack = knob('env',a,'attack', 1);
+          decay = knob('env',d,'decay', 2);
+          amount = knob('env',amount, 'amount', 3);
+        }
+        if(page==2){
+          context.fillText('Sustain', (labelWidth / 2), MidFont);
+          context.fillText('Release', (2 * labelWidth) - (labelWidth / 2), MidFont);
+          context.fillText('Vel Amt', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+          sustain = knob('env',s,'sustain', 1);
+          release = knob('env',r,'release', 2);
+          velamt = knob('env',velAmount, 'vel amt', 3);
+        }
+        if(page==3){
+          context.fillText('Delay', (labelWidth / 2), MidFont);
+          dlay = knob('env',delay,'delay', 1);
+          if(type=="Pitch Env" || type=="Aux 1 Env" || type=="Aux 2 Env"){
+            context.font =  MidFont + 'pt Calibri';
+            context.fillStyle = '#000000';
+            context.textAlign = 'center';
+            context.fillText('Destination', (2 * labelWidth) - (labelWidth / 2), MidFont);
+            context.textAlign = 'left';
+            context.fillStyle = '#00FFFF';
+            context.font =  SmFont + 'pt Calibri';
+            context.fillText(
+              'DESTINATION'.toUpperCase(),
+              71 * pixelSize,
+              56 * pixelSize
+            );
+
+            context.beginPath();
+            context.rect(70 * pixelSize, 36 * pixelSize, 95 * pixelSize, 12 * pixelSize);
+            context.strokeStyle = '#00FFFF';
+            context.stroke();
+
+            context.font =  MidFont + 'pt Calibri';
+            context.fillText(
+              dest,
+              73 * pixelSize,
+              45 * pixelSize
+            );
+          }
+        }
+
+        if(!adsr){s=0;r=0};
+        context.beginPath();
+        context.rect(2.5 * labelWidth, labelHeight * 2 + pixelSize * 4, 105 * pixelSize, 25 * pixelSize);
+        context.strokeStyle = '#004444';
+        context.stroke();
+
+        // Divider
+        context.beginPath();
+        context.moveTo(2.3 * labelWidth, 2 * labelHeight);
+        context.lineTo(2.3 * labelWidth, OledHeight - 1.5 * labelHeight);
+        context.strokeStyle = '#00FFFF';
+        context.stroke();
+
+        context.font =  LgFont + 'pt Calibri';
+
+        context.fillText('A:' + a, pixelSize * 184, pixelSize * 60);
+        context.fillText('D:' + d, pixelSize * 214, pixelSize * 60);
+        context.fillText('S:' + s, pixelSize * 244, pixelSize * 60);
+        context.fillText('R:' + r, pixelSize * 271, pixelSize * 60);
+
+        AS = 2.5 * labelWidth;
+        AE = 3 * labelWidth;
+        AL = (a==0) ? 0 : (a/127) * (AS - AE);
+
+        //Attack
+        context.beginPath();
+        context.moveTo(AS,  labelHeight * 2 + pixelSize * 4 + 25 * pixelSize);
+        context.lineTo(AS - AL, labelHeight * 2 + pixelSize * 4);
+        context.stroke();
+
+        //Peak (Depends on Atttack)
+        PeakStartX = AS - AL;
+        PeakStartY = labelHeight * 2 + pixelSize * 4;
+        PeakLine = (p==0) ? 0 :
+          (p/127) * (20 * pixelSize)
+          - ((pixelSize * 4) * a/127);
+        if(PeakLine<0){PeakLine = 0;}
+        context.beginPath();
+        context.moveTo(PeakStartX, PeakStartY);
+        context.lineTo(PeakStartX + PeakLine,PeakStartY);
+
+        //Decay depends on Peak value, sustain
+        DecayStartX = PeakStartX + PeakLine;
+
+        DecayStartY = labelHeight * 2 + pixelSize * 4;
+        DecayLine =
+        (d==0) ? 0 :
+          (d/127) * (55 * pixelSize)
+          - ((10 * pixelSize) * p/127)
+          - ((20 * pixelSize) * a/127);
+
+        SustainX = (25 * pixelSize) * s/127;
+        DecayEndX = DecayStartX + DecayLine;
+
+        context.moveTo(DecayStartX, DecayStartY );
+        context.lineTo(DecayEndX + PeakLine,DecayStartY+(25 * pixelSize) -  SustainX);
+
+        SustainEnd = DecayStartY+(25 * pixelSize) -  SustainX;
+        //Sustain.
+
+        if(adsr){
+          context.moveTo(DecayEndX + PeakLine, SustainEnd);
+          context.lineTo(DecayEndX + (15 * pixelSize) + (10 * pixelSize),SustainEnd);
+
+          //Release
+          context.beginPath();
+          ReleaseStart = DecayEndX + (15 * pixelSize) + (10 * pixelSize);
+          context.moveTo(ReleaseStart,SustainEnd);
+          EnvelopeTail = r / 127 * ((2.5 * labelWidth + (105 * pixelSize)) - ReleaseStart);
+          context.lineTo(ReleaseStart + EnvelopeTail, labelHeight * 2 + pixelSize * 4 + 25 * pixelSize);
+        }
+          context.stroke();
+      }
+
+      sample = function(smpl,level,freq,fine,filter,osc){
+        drawTemplate(beatName,'A12',soundName);
+        fineFreq = fine / 100;
+        freq = freq * 1;
+
+        context.fillText('OSC' + osc, (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+        context.fillText('Sample/Noise', (labelWidth / 2), MidFont);
+        context.fillText('Level', (2 * labelWidth) - (labelWidth / 2), MidFont);
+        context.fillText('Frequency', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+        context.fillText('Fine Freq', (4 * labelWidth) - (labelWidth / 2), MidFont);
+
+        context.beginPath();
+        context.rect(4 * pixelSize, 35 * pixelSize, 105 * pixelSize, 12 * pixelSize);
+        context.strokeStyle = '#00FFFF';
+        context.stroke();
+
+        context.fillStyle = '#00FFFF';
+        context.textAlign = 'left';
+        context.font =  SmFont + 'pt Calibri';
+        context.fillText('Sample/Noise'.toUpperCase(), pixelSize * 4, pixelSize * 55);
+
+        context.font =  MidFont + 'pt Calibri';
+        context.textAlign = 'left';
+        context.fillText(smpl, pixelSize * 6, pixelSize * 44);
+
+        knob('freq',level,'level', 1);
+        knob('freq',freq + fineFreq,'frequency', 2);
+        knob('freq',fine,'fine freq', 3);
+      }
+
+      sample2 = function(reverse,filter,osc){
+
+          drawTemplate(beatName,'A12',soundName);
+
+          context.fillText('OSC' + osc, (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+          context.fillText('Glide', (labelWidth / 2), MidFont);
+          context.fillText('Reverse', (2 * labelWidth) - (labelWidth / 2), MidFont);
+          context.fillText('Pre/PostFilter', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+
+
+
+          knob('filt',0,'Glide', 1);
+          knob('freq',filter,'Pre/Post Filter', 2);
+
+          drawToggle(reverse,'Reverse');
+      }
+
+      DCO = function(shape,mix,freq,fine,osc){
+        drawTemplate(beatName,'A12',soundName);
+        fineFreq = fine / 100;
+
+        context.fillText('OSC' + osc, (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+        context.fillText('Shape', (labelWidth / 2), MidFont);
+        context.fillText('Osc 1/2 Mix', (2 * labelWidth) - (labelWidth / 2), MidFont);
+        context.fillText('Frequency', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+        context.fillText('Fine Freq', (4 * labelWidth) - (labelWidth / 2), MidFont);
+
+        drawOsc(shape);
+
+        knob('freq',mix,'OSC 1/2 Mix', 1);
+        knob('freq',freq,'frequency', 2);
+        knob('freq',fine,'fine freq', 3);
+      }
+
+      DCO2 = function(sync,sub,slop,osc){
+        drawTemplate(beatName,'A12',soundName);
+        context.fillText('OSC' + osc, (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+        context.fillText('Glide', (labelWidth / 2), MidFont);
+        context.fillText('Sync 2->1', (2 * labelWidth) - (labelWidth / 2), MidFont);
+        context.fillText('Sub Osc', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+        context.fillText('Osc Slop', (4 * labelWidth) - (labelWidth / 2), MidFont);
+
+        knob('osc',sub,'Sub Osc', 1);
+        knob('freq',slop,'Osc Slop', 3);
+        knob('filt',0,'Glide', 1);
+
+        drawToggle(sync,'Sync 2->1');
+      }
+
+      LFO1 = function(shape,rate,amt,destination,restart,LFO,page){
+        drawTemplate(beatName,'A12',soundName);
+        context.fillText('LFO' + LFO, (4 * labelWidth) - (labelWidth / 2), bottomLabelBase);
+        context.fillText('Shape', (labelWidth / 2), MidFont);
+        context.fillText('Rate', (2 * labelWidth) - (labelWidth / 2), MidFont);
+        if(page==1){
+          context.fillText('Amount', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+          context.fillText('Destination', (4 * labelWidth) - (labelWidth / 2), MidFont);
+        }
+        else{
+          context.fillText('Sync', (3 * labelWidth) - (labelWidth/ 2), MidFont);
+          context.fillText('Restart', (4 * labelWidth) - (labelWidth / 2), MidFont);
+        }
+        context.strokeStyle = '#00FFFF';
+        context.fillStyle = '#00FFFF';
+        if(page==1){
+          context.beginPath();
+          context.rect(200 * pixelSize,32*pixelSize, 98 * pixelSize, 14 * pixelSize);
+          context.stroke();
+
+          context.textAlign = 'left';
+          context.fillText(destination, 202 * pixelSize, 43 * pixelSize);
+
+          knob('lfo',amt,'Amount', 2);
+          context.fillText('Destination'.toUpperCase(), 199 * pixelSize, 56 * pixelSize);
+        }
+        else if(page == 2){
+          context.beginPath();
+          context.rect(250 * pixelSize,32*pixelSize, 30 * pixelSize, 14 * pixelSize);
+          context.stroke();
+          context.textAlign = 'left';
+          context.font =  MidFont+ 'pt Calibri';
+          context.fillText(restart, 252 * pixelSize, 43 * pixelSize);
+          context.font =  SmFont + 'pt Calibri';
+          context.fillText('Restart'.toUpperCase(), 248 * pixelSize, 56 * pixelSize);
+          drawToggle(false,'Sync');
+        }
+        knob('lfo',rate,'Rate', 1);
+
+        drawOsc(shape);
+      }
+      ADSR(0,63,0,0,0,34,127,0,'Pitch Env',false,1);
+    </script>
+  </body>
+</html>
